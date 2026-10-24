@@ -1,7 +1,9 @@
-# MITalk recreation
+# MITalk Reborn
 
 A working reconstruction of the MIT text-to-speech system described in
 Allen, Hunnicutt & Klatt, *From Text to Speech: The MITalk System* (1987).
+
+This project has been made with the assistance of Claude Opus 5.5.
 
 ## Status
 
