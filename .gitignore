@@ -1,0 +1,17 @@
+# The source book (scanned PDF) stays out of the repository
+*.pdf
+
+# Distribution builds (make -C c dist)
+dist/
+
+# C build outputs
+c/*.o
+c/mitalk
+c/mitalk.exe
+
+# Python
+__pycache__/
+*.pyc
+
+# Claude Code plugin logs
+session_memory.json
