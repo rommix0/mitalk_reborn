@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/banner.svg" alt="MITalk Reborn: from text to speech, 1979 to today" width="100%">
+</p>
+
 # MITalk Reborn
 
 A working reconstruction of the MIT text-to-speech system described in
