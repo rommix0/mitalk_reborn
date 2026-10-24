@@ -2,6 +2,7 @@
 
     python tools/make_explainer.py [out.mp4]            # needs ffmpeg on PATH
     python tools/make_explainer.py --stills 7,17,32     # PNG frames for review
+    python tools/make_explainer.py --thumbnail          # dist/mitalk_thumbnail.png
 
 One sentence goes through every stage; each stage adds a layer to the screen,
 and the synthesized audio plays at the end with a playhead across all layers.
@@ -375,6 +376,63 @@ class Painter:
             x = float(d.xt(ms))
             self.line([x, x], [Y_BRACKET - 6, SP_1], color="#c8ffd8", lw=1.2, alpha=0.9)
 
+    # -------------------------------------------------------------- thumbnail
+
+    def thumbnail(self):
+        d, ax = self.d, self.ax
+        ax.cla()
+        ax.set_xlim(0, W)
+        ax.set_ylim(H, 0)
+        ax.axis("off")
+        self.txt(58, 128, "MITALK", fs=132)
+        self.txt(66, 238, "FROM TEXT TO SPEECH", fs=34)
+        self.txt(68, 286, "MIT, 1979  ·  REBUILT TODAY", fs=24, color=DIM)
+        self.txt(68, 352, "> " + SENT.upper() + "█", fs=24, color=DIM)
+
+        # the sentence as sound: spectrogram with F1-F3 and the pitch contour
+        x0, x1, y0, y1 = 40, 1240, 395, 690
+        span = d.span
+        msx = np.arange(span + 1)
+        xs = x0 + (x1 - x0) * msx / span
+        ax.imshow(d.spec, cmap=CMAP, aspect="auto", origin="lower", extent=(x0, x1, y1, y0),
+                  interpolation="bilinear")
+        self.rect(x0, y0, x1, y1, edge=DIM)
+        audible = (np.asarray(d.v["av"]) > 0) | (np.asarray(d.v["af"]) > 0) | (np.asarray(d.v["asp"]) > 0)
+        audible = audible[:span + 1]
+        for p in ("f1", "f2", "f3"):
+            f = np.asarray(d.v[p][:span + 1], dtype=float)
+            self.line(xs, np.where(audible, y1 - f / 5000 * (y1 - y0), np.nan), lw=2.2, alpha=0.75)
+        voiced = (np.asarray(d.v["av"]) > 0)[:span + 1]
+        pf = np.asarray(d.f0[:span + 1])
+        self.line(xs, np.where(voiced, y0 + 6 + (170 - pf) / 110 * 90, np.nan), color="#c8ffd8", lw=3)
+        for i, (w, ix) in enumerate(zip(d.words, d.word_seg)):
+            x = x0 + (x1 - x0) * (d.seg[ix[0]][0] + d.seg[ix[-1]][1]) / 2 / span
+            self.txt(x, y1 - 18, w.upper(), fs=15, color="#c8ffd8", ha="center")
+
+        # Klatt synthesizer box, as in docs/banner.svg
+        bx, by, s = 800, 150, 1.05
+        box = [(130, 204), (470, 204), (500, 244), (100, 244), (130, 204)]
+        self.line([bx + (x - 100) * s for x, _ in box], [by + (y - 204) * s for _, y in box], lw=2.4)
+        self.rect(bx, by + 40 * s, bx + 400 * s, by + 102 * s, edge=GREEN)
+        for k in (30, 37, 44, 51):
+            self.line([bx, bx + 400 * s], [by + (40 + k) * s] * 2, lw=1.2, alpha=0.6, glow=False)
+        self.rect(bx + 18 * s, by + 58 * s, bx + 42 * s, by + 82 * s, fill=GREEN, falpha=0.35, edge=GREEN)
+        self.txt(bx + 328 * s, by + 54 * s, "MITalk", fs=12, ha="center")
+        self.fig.canvas.draw()
+        return bloom(np.asarray(self.fig.canvas.buffer_rgba())[..., :3] / 255)
+
+
+def bloom(img, r=9, k=0.9):
+    """Phosphor glow: add a blurred copy of the bright parts (three box blurs ~ a Gaussian)."""
+    b = np.clip(img - 0.25, 0, 1)
+    for _ in range(3):
+        for axis in (0, 1):
+            c = np.cumsum(np.pad(b, [(r + 1, r) if a == axis else (0, 0) for a in range(3)], mode="edge"),
+                          axis=axis)
+            b = (np.take(c, range(2 * r + 1, c.shape[axis]), axis=axis)
+                 - np.take(c, range(0, c.shape[axis] - 2 * r - 1), axis=axis)) / (2 * r + 1)
+    return np.clip(img + k * b, 0, 1)
+
 
 # ---------------------------------------------------------------- audio
 
@@ -411,6 +469,12 @@ def write_wav(path, x):
 def main():
     d = Data()
     pt = Painter(d)
+    if len(sys.argv) > 1 and sys.argv[1] == "--thumbnail":
+        out = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "dist" / "mitalk_thumbnail.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        plt.imsave(out, pt.thumbnail())
+        print(f"wrote {out}")
+        return
     if len(sys.argv) > 2 and sys.argv[1] == "--stills":
         for s in sys.argv[2].split(","):
             img = np.asarray(pt.frame(float(s)))
