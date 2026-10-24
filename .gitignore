@@ -12,6 +12,3 @@ c/mitalk.exe
 # Python
 __pycache__/
 *.pyc
-
-# Claude Code plugin logs
-session_memory.json
