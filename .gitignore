@@ -1,6 +1,9 @@
 # The source book (scanned PDF) stays out of the repository
 *.pdf
 
+# ignore any WAV files
+*.wav
+
 # Distribution builds (make -C c dist)
 dist/
 
